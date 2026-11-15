@@ -27,35 +27,30 @@ def request_json(url, method="GET", headers=None, body=None):
             payload = {"detail": raw[:500]}
         return exc.code, payload
 
-
 def spaceship_availability():
+    # Spaceship's documented single-domain availability endpoint.
     url = f"https://spaceship.dev/api/v1/domains/{DOMAIN}/available"
-
     headers = {
         "X-API-Key": SPACESHIP_API_KEY,
         "X-API-Secret": SPACESHIP_API_SECRET,
         "Accept": "application/json",
     }
-
     status, payload = request_json(url, headers=headers)
-
     if status != 200:
-        raise RuntimeError(
-            f"Spaceship API returned HTTP {status}: {payload}"
-        )
+        raise RuntimeError(f"Spaceship API returned HTTP {status}: {payload}")
+    result = str(payload.get("result", "")).strip().lower()
 
-    result = str(payload.get("result", "")).lower()
-
-    if result == "available":
+    # Spaceship's API returns "available" when free and "taken" when registered.
+    # Keep explicit aliases for compatibility, but fail closed on unknown values.
+    if result in {"available"}:
         return True, payload
-
-    if result in ("taken", "unavailable"):
+    if result in {"taken", "unavailable"}:
         return False, payload
 
     raise RuntimeError(
-        f"Unknown availability response: {payload}"
+        f"Unrecognized Spaceship availability result {result!r}: {payload}. "
+        "No alert sent; check the API response before changing this mapping."
     )
-
 
 def rdap_status():
     # Discover the authoritative RDAP service for the TLD using IANA bootstrap.
